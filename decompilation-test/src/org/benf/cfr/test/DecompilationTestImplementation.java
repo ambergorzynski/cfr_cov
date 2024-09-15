@@ -436,6 +436,12 @@ class DecompilationTestImplementation {
         }
     }
 
+    static void performDecompilation(Path classFilePath) {
+        Map<String, String> baseOptions = new HashMap<>(); // empty for now
+        Map<String, String> options = createOptionsMap(baseOptions);
+        DecompilationResult decompilationResult = decompile(classFilePath, options);
+    }
+
     static void assertClassFile(Path classFilePath, Map<String, String> baseOptions, Path outputDir, String filePrefix) throws IOException {
         Map<String, String> options = createOptionsMap(baseOptions);
         DecompilationResult decompilationResult = decompile(classFilePath, options);
