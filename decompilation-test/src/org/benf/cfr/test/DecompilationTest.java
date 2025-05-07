@@ -8,17 +8,15 @@ import java.util.HashMap;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+
+import org.benf.cfr.test.DecompilationTestImplementation.FuzzerClassFileTestDataSource;
 
 public class DecompilationTest {
 
-    @Test
-    public void shouldAnswerWithTrue() {
-        Assertions.assertTrue(true);
-    }
-
-    @Test
-    public void decompile() {
-        Path classFilePath = Paths.get("/data/work/AggressiveCollapseTest.class");
+    @ParameterizedTest(name = "[{index}] {0}")
+    @FuzzerClassFileTestDataSource("fuzzer_classes.xml")
+    public void decompile(Path classFilePath) {
         DecompilationTestImplementation.performDecompilation(classFilePath);
         Assertions.assertTrue(true);
     }

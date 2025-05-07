@@ -3,6 +3,7 @@ package org.benf.cfr.test;
 import com.github.difflib.DiffUtils;
 import com.github.difflib.UnifiedDiffUtils;
 import com.github.difflib.patch.Patch;
+import org.benf.cfr.reader.Main;
 import org.benf.cfr.reader.api.CfrDriver;
 import org.benf.cfr.reader.api.OutputSinkFactory;
 import org.benf.cfr.reader.api.OutputSinkFactory.Sink;
@@ -168,12 +169,57 @@ class DecompilationTestImplementation {
                 }
                 Path expectedSource = getTestDataSubDir(classFilePath).resolve(name + ".class");
                 Path expectedTgt = TEST_DATA_EXPECTED_OUTPUT_ROOT_DIR.resolve("classes");
-
                 res.add(Arguments.of(expectedSource, options, expectedTgt, name + "." + label));
+               
             }
             return res.stream();
         }
     }
+
+
+    @Target(ElementType.METHOD)
+    @Retention(RetentionPolicy.RUNTIME)
+    @ArgumentsSource(FuzzerClassFileTestDataProvider.class)
+    @interface FuzzerClassFileTestDataSource {
+        /** Name of the file containing the class files test specifications */
+        String value();
+    }
+
+    static class FuzzerClassFileTestDataProvider implements ArgumentsProvider, AnnotationConsumer<FuzzerClassFileTestDataSource> {
+        private String configFilePath;
+        private DocumentBuilderFactory dbf;
+
+        @Override
+        public void accept(FuzzerClassFileTestDataSource annotation) {
+            configFilePath = annotation.value();
+            dbf = DocumentBuilderFactory.newInstance();
+        }
+
+        @Override
+        public Stream<? extends Arguments> provideArguments(ExtensionContext context) throws Exception {
+
+            List<Arguments> res = new ArrayList<>();
+
+            DocumentBuilder db = dbf.newDocumentBuilder();
+            Document doc = db.parse(TEST_SPECS_DIR.resolve(configFilePath).toString());
+
+            /* discover tests we want to do from config file; this is expected to match the
+             * binary files in the relevant directory.
+             */
+            doc.getDocumentElement().normalize();
+            NodeList classes = doc.getElementsByTagName("class");
+
+            for (int x=0;x<classes.getLength();++x) {
+                Element clazz = (Element)classes.item(x);
+                String classFilePath = clazz.getElementsByTagName("path").item(0).getTextContent();
+                String name = clazz.getElementsByTagName("name").item(0).getTextContent();
+                Path expectedSource = getTestDataSubDir(classFilePath).resolve(name);
+                res.add(Arguments.of(expectedSource));
+            }
+            return res.stream();
+        }
+    }
+
 
     private static Map<String, String> createOptionsMap(Map<String, String> baseOptions) {
         Map<String, String> options = new HashMap<>();
@@ -281,6 +327,8 @@ class DecompilationTestImplementation {
 
         // Replace version information and file path to prevent changes in the output
         String summary = summaryOutput.toString().replace(CfrVersionInfo.VERSION_INFO, "<version>").replace(pathString, "<path>/" + path.getFileName().toString());
+        
+        
         return new DecompilationResult(summary, exceptionsOutput.toString(), decompiledList);
     }
 
@@ -437,9 +485,27 @@ class DecompilationTestImplementation {
     }
 
     static void performDecompilation(Path classFilePath) {
+        String[] arguments = new String[] {classFilePath.toString()};
+        System.out.println(arguments);
+        Main.main(arguments);
+
+        /*
         Map<String, String> baseOptions = new HashMap<>(); // empty for now
         Map<String, String> options = createOptionsMap(baseOptions);
+        
+        String[] arguments = new String[] {classFilePath.toString()};
+        System.out.println(arguments);
+        Main.main(arguments);
+        
         DecompilationResult decompilationResult = decompile(classFilePath, options);
+
+        List<DecompiledMultiVer> decompiledList = decompilationResult.decompiled;
+
+        assertEquals(1, decompiledList.size());
+        DecompiledMultiVer decompiled = decompiledList.get(0);
+        assertEquals(0, decompiled.getRuntimeFrom());
+        String actualJavaCode = decompiled.getJava();
+        */
     }
 
     static void assertClassFile(Path classFilePath, Map<String, String> baseOptions, Path outputDir, String filePrefix) throws IOException {
